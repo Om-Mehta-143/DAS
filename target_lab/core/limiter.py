@@ -1,4 +1,3 @@
-import redis
 import time
 from functools import wraps
 from fastapi import Request, HTTPException
@@ -7,11 +6,12 @@ class RateLimiter:
     """Advanced Redis-backed Rate Limiter"""
     def __init__(self, host='localhost', port=6379, db=0):
         try:
+            import redis
             self.redis = redis.Redis(host=host, port=port, db=db, decode_responses=True)
             self.enabled = True
-        except:
+        except (ImportError, Exception):
             self.enabled = False
-            print("Redis not found. Rate limiting disabled.")
+            print("Redis not found or connection failed. Rate limiting using Redis disabled.")
 
     def is_allowed(self, key: str, limit: int, window: int) -> bool:
         if not self.enabled: return True
