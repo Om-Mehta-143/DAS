@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SITREP - Attack Monitoring Console</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --surface: #121216;
+            --primary: #00f2ff;
+            --danger: #ff3e3e;
+            --success: #3eff81;
+            --text: #e0e0e0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .stat-card.danger {
+            border-left-color: var(--danger);
+        }
+
+        .stat-card.success {
+            border-left-color: var(--success);
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            display: block;
+        }
+
+        .view-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .log-container,
+        .ban-container {
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 8px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            border-bottom: 1px solid #2a2a30;
+            padding-bottom: 4px;
+        }
+
+        .method {
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .status-success {
+            color: var(--success);
+        }
+
+        .status-fail {
+            color: var(--danger);
+        }
+
+        .timestamp {
+            color: #888;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>📡 SITREP - Tactical Attack Monitor</h1>
+            <div id="status-indicator">● LIVE</div>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span>Total Traffic</span>
+                <span id="total-reqs" class="stat-value">0</span>
+            </div>
+            <div class="stat-card danger">
+                <span>Banned IPs</span>
+                <span id="banned-count" class="stat-value">0</span>
+            </div>
+            <div class="stat-card success">
+                <span>PoW Solutions</span>
+                <span id="pow-passed" class="stat-value">0</span>
+            </div>
+            <div class="stat-card">
+                <span>Avg Latency</span>
+                <span id="avg-time" class="stat-value">0ms</span>
+            </div>
+        </div>
+
+        <div class="view-grid">
+            <div>
+                <h3>📝 Tactical Log</h3>
+                <div class="log-container" id="log-box"></div>
+            </div>
+            <div>
+                <h3>🚫 Banned Perimeter</h3>
+                <div class="ban-container" id="ban-box" style="margin-bottom: 15px;"></div>
+                <button onclick="unbanAll()"
+                    style="width: 100%; padding: 15px; background: var(--success); color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1.2em; box-shadow: 0 0 15px rgba(62, 255, 129, 0.4); transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px;">🔓
+                    Unban All Targets</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const logBox = document.getElementById('log-box');
+        const banBox = document.getElementById('ban-box');
+        const counters = {
+            total: document.getElementById('total-reqs'),
+            banned: document.getElementById('banned-count'),
+            pow: document.getElementById('pow-passed'),
+            avg: document.getElementById('avg-time')
+        };
+
+        async function updateDashboard() {
+            try {
+                const response = await fetch('/api/sitrep');
+                const data = await response.json();
+
+                const statsResponse = await fetch('/api/stats');
+                const stats = await statsResponse.json();
+
+                // Update Logs
+                logBox.innerHTML = '';
+                data.reverse().forEach(entry => {
+                    const div = document.createElement('div');
+                    div.className = 'log-entry';
+                    div.innerHTML = `
+                        <span class="timestamp">${new Date(entry.timestamp).toLocaleTimeString()}</span>
+                        <span class="method">${entry.method}</span>
+                        <span>${entry.url}</span>
+                        <span class="${entry.status_code >= 400 ? 'status-fail' : 'status-success'}">
+                            [${entry.status_code}]
+                        </span>
+                        <br><small style="color: #666">IP: ${entry.ip} | UA: ${entry.user_agent.substring(0, 40)}...</small>
+                    `;
+                    logBox.appendChild(div);
+                });
+
+                // Update Ban List
+                banBox.innerHTML = stats.banned.map(ip => `
+                    <div style="display: flex; flex-direction: column; color:var(--danger); margin-bottom: 12px; border-bottom: 1px solid #2a2a30; padding-bottom: 12px;">
+                        <span style="word-break: break-all; margin-bottom: 10px; font-size: 1.1em;">💀 ${ip}</span>
+                        <button onclick="unbanIp('${ip}')" style="background: rgba(0, 242, 255, 0.1); border: 1px solid var(--primary); color: var(--primary); padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: all 0.2s;">Unban Individual Target</button>
+                    </div>
+                `).join('') || "No active bans";
+
+                // Update Counters
+                counters.total.innerText = stats.global_traffic;
+                counters.banned.innerText = stats.banned.length;
+                counters.pow.innerText = stats.pow_total;
+                counters.avg.innerText = Math.round(data.reduce((a, b) => a + b.duration_ms, 0) / (data.length || 1)) + 'ms';
+
+            } catch (e) { console.error('Dashboard sync error:', e); }
+        }
+
+        setInterval(updateDashboard, 1000);
+        updateDashboard();
+
+        async function unbanIp(ip) {
+            try {
+                const res = await fetch('/api/unban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip })
+                });
+                if (res.ok) {
+                    updateDashboard();
+                }
+            } catch (e) { console.error('Unban error:', e); }
+        }
+
+        async function unbanAll() {
+            try {
+                const res = await fetch('/api/unban_all', { method: 'POST' });
+                if (res.ok) {
+                    updateDashboard();
+                }
+            } catch (e) { console.error('Unban All error:', e); }
+        }
+    </script>
+</body>
+
+</html>
