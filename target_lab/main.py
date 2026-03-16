@@ -415,7 +415,7 @@ async def catch_all_post(request: Request, full_path: str):
     # Track malicious blind POST attempts
     failed_attempts[client_ip] = failed_attempts.get(client_ip, 0) + 1
     if failed_attempts[client_ip] > 10:
-        banned_ips.add(client_ip)
+        db_manager.ban_ip(client_ip, f"Malicious route sweeping on /{full_path}")
         attack_logger.warning(f"BAN: Malicious route sweeping from {client_ip} on /{full_path}")
         raise HTTPException(status_code=403, detail="Too many invalid requests. IP banned.")
         
@@ -423,4 +423,5 @@ async def catch_all_post(request: Request, full_path: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8081)
+    port = int(os.getenv("PORT", 8081))
+    uvicorn.run(app, host="0.0.0.0", port=port)
