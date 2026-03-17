@@ -12,7 +12,3 @@ services:
         sync: false
       - key: PYTHONUNBUFFERED
         value: "1"
-    disk:
-      name: logs-data
-      mountPath: /app/logs
-      sizeGB: 1
