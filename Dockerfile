@@ -4,6 +4,7 @@ FROM python:3.11-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PORT=8081
 
 # Set work directory
 WORKDIR /app
@@ -21,8 +22,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . .
 
+# Create logs directory and set permissions
+RUN mkdir -p /app/logs && chmod 777 /app/logs
+
 # Expose port
-EXPOSE 8081
+EXPOSE ${PORT}
 
 # Command to run the application
-CMD ["python", "-m", "target_lab.main"]
+CMD ["sh", "-c", "python -m target_lab.main"]

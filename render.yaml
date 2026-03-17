@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: distribution-attack-sim-lab
+    runtime: docker
+    plan: free
+    envVars:
+      - key: PORT
+        value: 8081
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    disk:
+      name: logs-data
+      mountPath: /app/logs
+      sizeGB: 1
